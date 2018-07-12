@@ -1,0 +1,182 @@
+package main
+
+import (
+	"context"
+	"flag"
+	"fmt"
+	"io"
+	"os"
+	"syscall"
+
+	"bazil.org/fuse"
+	"bazil.org/fuse/fs"
+	_ "bazil.org/fuse/fs/fstestutil"
+	"bazil.org/fuse/fuseutil"
+	"github.com/nuveo/log"
+)
+
+func usage() {
+	fmt.Fprintf(os.Stderr, "Usage of %s:\n", os.Args[0])
+	fmt.Fprintf(os.Stderr, "  %s MOUNTPOINT\n", os.Args[0])
+	flag.PrintDefaults()
+}
+
+func close(c io.Closer) {
+	err := c.Close()
+	if err != nil {
+		log.Errorln(err)
+	}
+}
+
+func run(mountpoint string) (err error) {
+	c, err := fuse.Mount(
+		mountpoint,
+		fuse.FSName("database"),
+		fuse.Subtype("pgfs"),
+		fuse.LocalVolume(),
+		fuse.VolumeName("Postgres filesystem"),
+	)
+	if err != nil {
+		return
+	}
+	defer close(c)
+
+	if p := c.Protocol(); !p.HasInvalidate() {
+		return fmt.Errorf("kernel FUSE support is too old to have invalidations: version %v", p)
+	}
+
+	srv := fs.New(c, nil)
+	filesys := &FS{
+		Nodes: map[string]*Node{
+			"test1.txt": &Node{
+				Name:    "test1.txt",
+				fuse:    srv,
+				Inode:   2,
+				Content: []byte("test file 1\n"),
+			},
+			"test2.txt": &Node{
+				Name:    "test2.txt",
+				fuse:    srv,
+				Inode:   3,
+				Content: []byte("test file 2\n"),
+			},
+			"test3.txt": &Node{
+				Name:    "test3.txt",
+				fuse:    srv,
+				Inode:   4,
+				Content: []byte("test file 3\n"),
+			},
+		},
+	}
+
+	err = srv.Serve(filesys)
+	if err != nil {
+		return
+	}
+
+	// Check if the mount process has an error to report.
+	<-c.Ready
+	err = c.MountError
+	return
+}
+
+func main() {
+	flag.Usage = usage
+	flag.Parse()
+
+	if flag.NArg() != 1 {
+		usage()
+		os.Exit(2)
+	}
+	mountpoint := flag.Arg(0)
+
+	err := run(mountpoint)
+	if err != nil {
+		log.Fatal(err)
+	}
+}
+
+type FS struct {
+	Nodes map[string]*Node
+}
+
+var _ fs.FS = (*FS)(nil)
+
+func (f *FS) Root() (fs.Node, error) {
+	return &Dir{fs: f}, nil
+}
+
+// Dir implements both Node and Handle for the root directory.
+type Dir struct {
+	fs *FS
+}
+
+var _ fs.Node = (*Dir)(nil)
+
+func (d *Dir) Attr(ctx context.Context, a *fuse.Attr) error {
+	a.Inode = 1
+	a.Mode = os.ModeDir | 0555
+	return nil
+}
+
+var _ fs.NodeStringLookuper = (*Dir)(nil)
+
+func (d *Dir) Lookup(ctx context.Context, name string) (fs.Node, error) {
+	node, ok := d.fs.Nodes[name]
+	if ok {
+		return node, nil
+	}
+	return nil, fuse.ENOENT
+}
+
+var _ fs.HandleReadDirAller = (*Dir)(nil)
+
+func (d *Dir) ReadDirAll(ctx context.Context) ([]fuse.Dirent, error) {
+	var dirDirs []fuse.Dirent
+	for _, n := range d.fs.Nodes {
+		dirent := fuse.Dirent{
+			Inode: n.Inode,
+			Name:  n.Name,
+			Type:  n.Type,
+		}
+		dirDirs = append(dirDirs, dirent)
+	}
+	return dirDirs, nil
+}
+
+type Node struct {
+	fuse    *fs.Server
+	Inode   uint64
+	Name    string
+	Type    fuse.DirentType
+	Content []byte
+}
+
+var _ fs.Node = (*Node)(nil)
+
+func (f *Node) Attr(ctx context.Context, a *fuse.Attr) error {
+	a.Inode = f.Inode
+	a.Mode = 0444
+	a.Size = uint64(len(f.Content))
+	return nil
+}
+
+var _ fs.NodeOpener = (*Node)(nil)
+
+func (f *Node) Open(ctx context.Context, req *fuse.OpenRequest, resp *fuse.OpenResponse) (fs.Handle, error) {
+	if !req.Flags.IsReadOnly() {
+		return nil, fuse.Errno(syscall.EACCES)
+	}
+	resp.Flags |= fuse.OpenKeepCache
+	return f, nil
+}
+
+var _ fs.Handle = (*Node)(nil)
+
+var _ fs.HandleReader = (*Node)(nil)
+
+func (f *Node) Read(ctx context.Context, req *fuse.ReadRequest, resp *fuse.ReadResponse) error {
+	fmt.Printf("Reading file %q from %v to %v\n", f.Name, req.Offset, req.Size)
+	fuseutil.HandleRead(req, resp, f.Content)
+	return nil
+}
