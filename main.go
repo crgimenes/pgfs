@@ -69,6 +69,37 @@ func run(mountpoint string) (err error) {
 				Type:    fuse.DT_File,
 				Content: []byte("test file 3\n"),
 			},
+			"anotherDir": &Node{
+				Name:  "outroDir",
+				fuse:  srv,
+				Inode: 5,
+				Type:  fuse.DT_Dir,
+				fs: &FS{
+					Nodes: map[string]*Node{
+						"anotherDir/test4.txt": &Node{
+							Name:    "test4.txt",
+							fuse:    srv,
+							Inode:   6,
+							Type:    fuse.DT_File,
+							Content: []byte("test file 4\n"),
+						},
+						"anotherDir/test5.txt": &Node{
+							Name:    "test5.txt",
+							fuse:    srv,
+							Inode:   7,
+							Type:    fuse.DT_File,
+							Content: []byte("test file 5\n"),
+						},
+						"anotherDir/test6.txt": &Node{
+							Name:    "test6.txt",
+							fuse:    srv,
+							Inode:   8,
+							Type:    fuse.DT_File,
+							Content: []byte("test file 6\n"),
+						},
+					},
+				},
+			},
 		},
 	}
 
