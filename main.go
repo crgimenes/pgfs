@@ -106,25 +106,12 @@ type FS struct {
 var _ fs.FS = (*FS)(nil)
 
 func (f *FS) Root() (fs.Node, error) {
-	return &Dir{fs: f}, nil
+	return &Node{fs: f}, nil
 }
 
-// Dir implements both Node and Handle for the root directory.
-type Dir struct {
-	fs *FS
-}
+var _ fs.NodeStringLookuper = (*Node)(nil)
 
-var _ fs.Node = (*Dir)(nil)
-
-func (d *Dir) Attr(ctx context.Context, a *fuse.Attr) error {
-	a.Inode = 1
-	a.Mode = os.ModeDir | 0555
-	return nil
-}
-
-var _ fs.NodeStringLookuper = (*Dir)(nil)
-
-func (d *Dir) Lookup(ctx context.Context, name string) (fs.Node, error) {
+func (d *Node) Lookup(ctx context.Context, name string) (fs.Node, error) {
 	node, ok := d.fs.Nodes[name]
 	if ok {
 		return node, nil
@@ -132,9 +119,9 @@ func (d *Dir) Lookup(ctx context.Context, name string) (fs.Node, error) {
 	return nil, fuse.ENOENT
 }
 
-var _ fs.HandleReadDirAller = (*Dir)(nil)
+var _ fs.HandleReadDirAller = (*Node)(nil)
 
-func (d *Dir) ReadDirAll(ctx context.Context) ([]fuse.Dirent, error) {
+func (d *Node) ReadDirAll(ctx context.Context) ([]fuse.Dirent, error) {
 	var dirDirs []fuse.Dirent
 	for _, n := range d.fs.Nodes {
 		dirent := fuse.Dirent{
@@ -149,6 +136,7 @@ func (d *Dir) ReadDirAll(ctx context.Context) ([]fuse.Dirent, error) {
 
 type Node struct {
 	fuse    *fs.Server
+	fs      *FS
 	Inode   uint64
 	Name    string
 	Type    fuse.DirentType
@@ -158,9 +146,13 @@ type Node struct {
 var _ fs.Node = (*Node)(nil)
 
 func (f *Node) Attr(ctx context.Context, a *fuse.Attr) error {
-	a.Inode = f.Inode
-	a.Mode = 0444
-	a.Size = uint64(len(f.Content))
+	a.Inode = 1
+	a.Mode = os.ModeDir | 0555
+	if f.Type == fuse.DT_File {
+		a.Inode = f.Inode
+		a.Mode = 0444
+		a.Size = uint64(len(f.Content))
+	}
 	return nil
 }
 
