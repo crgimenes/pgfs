@@ -55,14 +55,12 @@ func (n *Node) ReadDirAll(ctx context.Context) ([]fuse.Dirent, error) {
 }
 
 func (n *Node) Attr(ctx context.Context, a *fuse.Attr) error {
+	a.Inode = 1
 	a.Mode = os.ModeDir | 0555
 	if n.Type == fuse.DT_File {
 		a.Inode = n.Inode
 		a.Mode = 0444
 		a.Size = uint64(len(n.Content))
-	}
-	if a.Inode == 0 {
-		a.Inode = 1
 	}
 	return nil
 }
