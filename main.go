@@ -4,15 +4,17 @@ import (
 	"log"
 
 	"github.com/crgimenes/goconfig"
+	_ "github.com/crgimenes/goconfig/toml"
 	"github.com/crgimenes/pgfs/fuse"
 )
 
 type config struct {
-	Mountpoint string `json:"m" cfg:"m"`
+	Mountpoint string `json:"m" toml:"mountpoint" cfg:"m"`
 }
 
 func main() {
 	cfg := config{}
+	goconfig.File = "pgfs.toml"
 	err := goconfig.Parse(&cfg)
 	if err != nil {
 		log.Fatal(err)
