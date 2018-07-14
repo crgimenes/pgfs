@@ -15,6 +15,66 @@ import (
 	"github.com/nuveo/log"
 )
 
+var _ fs.FS = (*FS)(nil)
+var _ fs.NodeStringLookuper = (*Node)(nil)
+var _ fs.HandleReadDirAller = (*Node)(nil)
+var _ fs.Node = (*Node)(nil)
+var _ fs.NodeOpener = (*Node)(nil)
+var _ fs.Handle = (*Node)(nil)
+var _ fs.HandleReader = (*Node)(nil)
+
+type FS struct {
+	Nodes map[string]*Node
+}
+
+type Node struct {
+	fuse    *fs.Server
+	fs      *FS
+	Inode   uint64
+	Name    string
+	Type    fuse.DirentType
+	Content []byte
+}
+
+// Root return root directory
+func (f *FS) Root() (fs.Node, error) {
+	return &Node{fs: f}, nil
+}
+
+func (n *Node) Lookup(ctx context.Context, name string) (fs.Node, error) {
+	node, ok := n.fs.Nodes[name]
+	if ok {
+		return node, nil
+	}
+	return nil, fuse.ENOENT
+}
+
+func (n *Node) ReadDirAll(ctx context.Context) ([]fuse.Dirent, error) {
+	var dirDirs []fuse.Dirent
+	for _, node := range n.fs.Nodes {
+		dirent := fuse.Dirent{
+			Inode: node.Inode,
+			Name:  node.Name,
+			Type:  node.Type,
+		}
+		dirDirs = append(dirDirs, dirent)
+	}
+	return dirDirs, nil
+}
+
+func (n *Node) Attr(ctx context.Context, a *fuse.Attr) error {
+	a.Mode = os.ModeDir | 0555
+	if n.Type == fuse.DT_File {
+		a.Inode = n.Inode
+		a.Mode = 0444
+		a.Size = uint64(len(n.Content))
+	}
+	if a.Inode == 0 {
+		a.Inode = 1
+	}
+	return nil
+}
+
 func usage() {
 	fmt.Fprintf(os.Stderr, "Usage of %s:\n", os.Args[0])
 	fmt.Fprintf(os.Stderr, "  %s MOUNTPOINT\n", os.Args[0])
@@ -28,13 +88,27 @@ func close(c io.Closer) {
 	}
 }
 
+func (n *Node) Open(ctx context.Context, req *fuse.OpenRequest, resp *fuse.OpenResponse) (fs.Handle, error) {
+	if !req.Flags.IsReadOnly() {
+		return nil, fuse.Errno(syscall.EACCES)
+	}
+	resp.Flags |= fuse.OpenKeepCache
+	return n, nil
+}
+
+func (n *Node) Read(ctx context.Context, req *fuse.ReadRequest, resp *fuse.ReadResponse) error {
+	fmt.Printf("Reading file %q from %v to %v\n", n.Name, req.Offset, req.Size)
+	fuseutil.HandleRead(req, resp, n.Content)
+	return nil
+}
+
 func run(mountpoint string) (err error) {
 	c, err := fuse.Mount(
 		mountpoint,
-		fuse.FSName("database"),
+		fuse.FSName("pgfs"),
 		fuse.Subtype("pgfs"),
 		fuse.LocalVolume(),
-		fuse.VolumeName("Postgres filesystem"),
+		fuse.VolumeName("Postgresql filesystem"),
 	)
 	if err != nil {
 		return
@@ -70,27 +144,27 @@ func run(mountpoint string) (err error) {
 				Content: []byte("test file 3\n"),
 			},
 			"anotherDir": &Node{
-				Name:  "outroDir",
+				Name:  "anotherDir",
 				fuse:  srv,
 				Inode: 5,
 				Type:  fuse.DT_Dir,
 				fs: &FS{
 					Nodes: map[string]*Node{
-						"anotherDir/test4.txt": &Node{
+						"test4.txt": &Node{
 							Name:    "test4.txt",
 							fuse:    srv,
 							Inode:   6,
 							Type:    fuse.DT_File,
 							Content: []byte("test file 4\n"),
 						},
-						"anotherDir/test5.txt": &Node{
+						"test5.txt": &Node{
 							Name:    "test5.txt",
 							fuse:    srv,
 							Inode:   7,
 							Type:    fuse.DT_File,
 							Content: []byte("test file 5\n"),
 						},
-						"anotherDir/test6.txt": &Node{
+						"test6.txt": &Node{
 							Name:    "test6.txt",
 							fuse:    srv,
 							Inode:   8,
@@ -128,81 +202,4 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-}
-
-type FS struct {
-	Nodes map[string]*Node
-}
-
-var _ fs.FS = (*FS)(nil)
-
-func (f *FS) Root() (fs.Node, error) {
-	return &Node{fs: f}, nil
-}
-
-var _ fs.NodeStringLookuper = (*Node)(nil)
-
-func (d *Node) Lookup(ctx context.Context, name string) (fs.Node, error) {
-	node, ok := d.fs.Nodes[name]
-	if ok {
-		return node, nil
-	}
-	return nil, fuse.ENOENT
-}
-
-var _ fs.HandleReadDirAller = (*Node)(nil)
-
-func (d *Node) ReadDirAll(ctx context.Context) ([]fuse.Dirent, error) {
-	var dirDirs []fuse.Dirent
-	for _, n := range d.fs.Nodes {
-		dirent := fuse.Dirent{
-			Inode: n.Inode,
-			Name:  n.Name,
-			Type:  n.Type,
-		}
-		dirDirs = append(dirDirs, dirent)
-	}
-	return dirDirs, nil
-}
-
-type Node struct {
-	fuse    *fs.Server
-	fs      *FS
-	Inode   uint64
-	Name    string
-	Type    fuse.DirentType
-	Content []byte
-}
-
-var _ fs.Node = (*Node)(nil)
-
-func (f *Node) Attr(ctx context.Context, a *fuse.Attr) error {
-	a.Inode = 1
-	a.Mode = os.ModeDir | 0555
-	if f.Type == fuse.DT_File {
-		a.Inode = f.Inode
-		a.Mode = 0444
-		a.Size = uint64(len(f.Content))
-	}
-	return nil
-}
-
-var _ fs.NodeOpener = (*Node)(nil)
-
-func (f *Node) Open(ctx context.Context, req *fuse.OpenRequest, resp *fuse.OpenResponse) (fs.Handle, error) {
-	if !req.Flags.IsReadOnly() {
-		return nil, fuse.Errno(syscall.EACCES)
-	}
-	resp.Flags |= fuse.OpenKeepCache
-	return f, nil
-}
-
-var _ fs.Handle = (*Node)(nil)
-
-var _ fs.HandleReader = (*Node)(nil)
-
-func (f *Node) Read(ctx context.Context, req *fuse.ReadRequest, resp *fuse.ReadResponse) error {
-	fmt.Printf("Reading file %q from %v to %v\n", f.Name, req.Offset, req.Size)
-	fuseutil.HandleRead(req, resp, f.Content)
-	return nil
 }
