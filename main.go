@@ -1,31 +1,28 @@
 package main
 
 import (
-	"flag"
-	"fmt"
 	"log"
-	"os"
 
+	"github.com/crgimenes/goconfig"
 	"github.com/crgimenes/pgfs/fuse"
 )
 
-func usage() {
-	fmt.Fprintf(os.Stderr, "Usage of %s:\n", os.Args[0])
-	fmt.Fprintf(os.Stderr, "  %s MOUNTPOINT\n", os.Args[0])
-	flag.PrintDefaults()
+type config struct {
+	Mountpoint string `json:"m" cfg:"m"`
 }
 
 func main() {
-	flag.Usage = usage
-	flag.Parse()
-
-	if flag.NArg() != 1 {
-		usage()
-		os.Exit(2)
+	cfg := config{}
+	err := goconfig.Parse(&cfg)
+	if err != nil {
+		log.Fatal(err)
 	}
-	mountpoint := flag.Arg(0)
 
-	err := fuse.Run(mountpoint)
+	if cfg.Mountpoint == "" {
+		log.Fatalln("mount point is required use -m parameter")
+	}
+
+	err = fuse.Run(cfg.Mountpoint)
 	if err != nil {
 		log.Fatal(err)
 	}
