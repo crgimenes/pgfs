@@ -15,14 +15,6 @@ import (
 	"github.com/nuveo/log"
 )
 
-var _ fs.FS = (*FS)(nil)
-var _ fs.NodeStringLookuper = (*Node)(nil)
-var _ fs.HandleReadDirAller = (*Node)(nil)
-var _ fs.Node = (*Node)(nil)
-var _ fs.NodeOpener = (*Node)(nil)
-var _ fs.Handle = (*Node)(nil)
-var _ fs.HandleReader = (*Node)(nil)
-
 type FS struct {
 	Nodes map[string]*Node
 }
