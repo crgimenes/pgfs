@@ -19,11 +19,9 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-
 	if cfg.Mountpoint == "" {
 		log.Fatalln("mount point is required use -m parameter")
 	}
-
 	err = fuse.Run(cfg.Mountpoint)
 	if err != nil {
 		log.Fatal(err)
