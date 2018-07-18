@@ -1,2 +1,4 @@
 mountpoint = "test"
+dsn = "user=postgres password=postgres dbname=databasename sslmode=disable"
+schema = "public"
 debug = true
