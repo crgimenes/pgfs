@@ -2,15 +2,19 @@ package fuse
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
 	"os"
+	"path/filepath"
+	"strings"
 	"syscall"
 
 	"bazil.org/fuse"
 	"bazil.org/fuse/fs"
 	_ "bazil.org/fuse/fs/fstestutil"
 	"bazil.org/fuse/fuseutil"
+	"github.com/crgimenes/pgfs/adapters/postgres"
 	"github.com/nuveo/log"
 )
 
@@ -29,10 +33,12 @@ type Node struct {
 
 // Root return root directory
 func (f *FS) Root() (fs.Node, error) {
+	fmt.Println("Root", len(f.Nodes))
 	return &Node{fs: f}, nil
 }
 
 func (n *Node) Lookup(ctx context.Context, name string) (fs.Node, error) {
+	fmt.Println("Lookup", n.Name, n.Inode)
 	node, ok := n.fs.Nodes[name]
 	if ok {
 		return node, nil
@@ -41,6 +47,7 @@ func (n *Node) Lookup(ctx context.Context, name string) (fs.Node, error) {
 }
 
 func (n *Node) ReadDirAll(ctx context.Context) ([]fuse.Dirent, error) {
+	fmt.Println("ReadDirAll", n.Name, n.Inode)
 	var dirDirs []fuse.Dirent
 	for _, node := range n.fs.Nodes {
 		dirent := fuse.Dirent{
@@ -54,8 +61,31 @@ func (n *Node) ReadDirAll(ctx context.Context) ([]fuse.Dirent, error) {
 }
 
 func (n *Node) Attr(ctx context.Context, a *fuse.Attr) error {
+	fmt.Println("Attr", n.Name, n.Inode)
 	a.Inode = 1
 	a.Mode = os.ModeDir | 0555
+	if n.Name != "" {
+		ext := filepath.Ext(n.Name)
+		tableName := strings.TrimSuffix(n.Name, ext)
+
+		t, err := postgres.LoadTable(tableName)
+		if err != nil {
+			return err
+		}
+
+		switch ext {
+		case ".json":
+			n.Content, err = json.MarshalIndent(t, "", "\t")
+			if err != nil {
+				return err
+			}
+		case ".csv":
+			n.Content = []byte("not implemented")
+		default:
+			n.Content = []byte(n.Name)
+		}
+
+	}
 	if n.Type == fuse.DT_File {
 		a.Inode = n.Inode
 		a.Mode = 0444
@@ -72,6 +102,7 @@ func close(c io.Closer) {
 }
 
 func (n *Node) Open(ctx context.Context, req *fuse.OpenRequest, resp *fuse.OpenResponse) (fs.Handle, error) {
+	fmt.Println("Open", n.Name, n.Inode)
 	if !req.Flags.IsReadOnly() {
 		return nil, fuse.Errno(syscall.EACCES)
 	}
@@ -80,7 +111,7 @@ func (n *Node) Open(ctx context.Context, req *fuse.OpenRequest, resp *fuse.OpenR
 }
 
 func (n *Node) Read(ctx context.Context, req *fuse.ReadRequest, resp *fuse.ReadResponse) error {
-	fmt.Printf("Reading file %q from %v to %v\n", n.Name, req.Offset, req.Size)
+	fmt.Printf("Reading file %q from %v to %v, inode %v\n", n.Name, req.Offset, req.Size, n.Inode)
 	fuseutil.HandleRead(req, resp, n.Content)
 	return nil
 }
@@ -102,62 +133,45 @@ func Run(mountpoint string) (err error) {
 		return fmt.Errorf("kernel FUSE support is too old to have invalidations: version %v", p)
 	}
 
+	tables, err := postgres.ListTables()
+	if err != nil {
+		return
+	}
+	nodes := make(map[string]*Node)
 	srv := fs.New(c, nil)
-	filesys := &FS{
-		Nodes: map[string]*Node{
-			"test1.txt": &Node{
-				Name:    "test1.txt",
-				fuse:    srv,
-				Inode:   2,
-				Type:    fuse.DT_File,
-				Content: []byte("test file 1\n"),
-			},
-			"test2.txt": &Node{
-				Name:    "test2.txt",
-				fuse:    srv,
-				Inode:   3,
-				Type:    fuse.DT_File,
-				Content: []byte("test file 2\n"),
-			},
-			"test3.txt": &Node{
-				Name:    "test3.txt",
-				fuse:    srv,
-				Inode:   4,
-				Type:    fuse.DT_File,
-				Content: []byte("test file 3\n"),
-			},
-			"anotherDir": &Node{
-				Name:  "anotherDir",
-				fuse:  srv,
-				Inode: 5,
-				Type:  fuse.DT_Dir,
-				fs: &FS{
-					Nodes: map[string]*Node{
-						"test4.txt": &Node{
-							Name:    "test4.txt",
-							fuse:    srv,
-							Inode:   6,
-							Type:    fuse.DT_File,
-							Content: []byte("test file 4\n"),
-						},
-						"test5.txt": &Node{
-							Name:    "test5.txt",
-							fuse:    srv,
-							Inode:   7,
-							Type:    fuse.DT_File,
-							Content: []byte("test file 5\n"),
-						},
-						"test6.txt": &Node{
-							Name:    "test6.txt",
-							fuse:    srv,
-							Inode:   8,
-							Type:    fuse.DT_File,
-							Content: []byte("test file 6\n"),
-						},
+
+	var inode uint64 = 2
+	for _, t := range tables {
+		node := Node{
+			Name:  t.Name,
+			fuse:  srv,
+			Inode: inode,
+			Type:  fuse.DT_Dir,
+			fs: &FS{
+				Nodes: map[string]*Node{
+					t.Name + ".json": &Node{
+						Name:    t.Name + ".json",
+						fuse:    srv,
+						Inode:   inode + 1,
+						Type:    fuse.DT_File,
+						Content: []byte("test file 4\n"),
+					},
+					t.Name + ".csv": &Node{
+						Name:    t.Name + ".csv",
+						fuse:    srv,
+						Inode:   inode + 2,
+						Type:    fuse.DT_File,
+						Content: []byte("test file 4\n"),
 					},
 				},
 			},
-		},
+		}
+		nodes[t.Name] = &node
+		inode += 3
+	}
+
+	filesys := &FS{
+		Nodes: nodes,
 	}
 
 	err = srv.Serve(filesys)

@@ -9,14 +9,45 @@ import (
 	_ "github.com/lib/pq"
 )
 
-func ListTables() (err error) {
+type Table struct {
+	Name string
+}
+
+func ListTables() (t []Table, err error) {
 	db, err := sql.Open("postgres", "user=postgres password=postgres dbname=cesar sslmode=disable")
 	if err != nil {
 		return
 	}
 	defer db.Close()
 
-	rows, err := db.Query("SELECT * FROM pg_catalog.pg_tables")
+	rows, err := db.Query("SELECT tablename FROM pg_tables where schemaname = 'public'")
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	for rows.Next() {
+		var name string
+		err = rows.Scan(&name)
+		if err != nil {
+			return
+		}
+		t = append(t, Table{Name: name})
+	}
+
+	return
+}
+
+func LoadTable(tableName string) (t []map[string]string, err error) {
+	db, err := sql.Open("postgres", "user=postgres password=postgres dbname=cesar sslmode=disable")
+	if err != nil {
+		return
+	}
+	defer db.Close()
+
+	//ext := filepath.Ext(tableName)
+	//tableName = strings.TrimSuffix(tableName, ext)
+
+	rows, err := db.Query("SELECT * FROM " + tableName)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -36,10 +67,13 @@ func ListTables() (err error) {
 		if e := rows.Scan(vals...); e != nil {
 			log.Fatal(e)
 		}
+		m := make(map[string]string)
 		for idx, column := range cols {
 			var scanner = vals[idx].(*scanner)
 			fmt.Printf("%v: %v\n", column, scanner.String())
+			m[column] = scanner.String()
 		}
+		t = append(t, m)
 	}
 
 	return
