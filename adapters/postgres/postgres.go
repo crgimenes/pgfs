@@ -9,6 +9,7 @@ import (
 	"log"
 	"time"
 
+	"github.com/crgimenes/pgfs/config"
 	_ "github.com/lib/pq"
 )
 
@@ -17,13 +18,14 @@ type Table struct {
 }
 
 func ListTables() (t []Table, err error) {
-	db, err := sql.Open("postgres", "user=postgres password=postgres dbname=cesar sslmode=disable")
+	cfg := config.Get()
+	db, err := sql.Open("postgres", cfg.DataSourceName)
 	if err != nil {
 		return
 	}
 	defer db.Close()
 
-	rows, err := db.Query("SELECT tablename FROM pg_tables where schemaname = 'public'")
+	rows, err := db.Query("SELECT tablename FROM pg_tables where schemaname = $1", cfg.SchemaName)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -41,7 +43,8 @@ func ListTables() (t []Table, err error) {
 }
 
 func LoadTableJSON(tableName string) (ret []byte, err error) {
-	db, err := sql.Open("postgres", "user=postgres password=postgres dbname=cesar sslmode=disable")
+	cfg := config.Get()
+	db, err := sql.Open("postgres", cfg.DataSourceName)
 	if err != nil {
 		return
 	}
@@ -57,7 +60,6 @@ func LoadTableJSON(tableName string) (ret []byte, err error) {
 		log.Fatal(err)
 	}
 
-	fmt.Printf("%v\n", cols)
 	var t []map[string]string
 	for rows.Next() {
 		vals := make([]interface{}, len(cols))
@@ -70,7 +72,6 @@ func LoadTableJSON(tableName string) (ret []byte, err error) {
 		m := make(map[string]string)
 		for idx, column := range cols {
 			var scanner = vals[idx].(*scanner)
-			fmt.Printf("%v: %v\n", column, scanner.String())
 			m[column] = scanner.String()
 		}
 		t = append(t, m)
@@ -80,7 +81,8 @@ func LoadTableJSON(tableName string) (ret []byte, err error) {
 }
 
 func LoadTableCSV(tableName string) (ret []byte, err error) {
-	db, err := sql.Open("postgres", "user=postgres password=postgres dbname=cesar sslmode=disable")
+	cfg := config.Get()
+	db, err := sql.Open("postgres", cfg.DataSourceName)
 	if err != nil {
 		return
 	}
@@ -103,8 +105,6 @@ func LoadTableCSV(tableName string) (ret []byte, err error) {
 		return
 	}
 
-	fmt.Printf("%v\n", cols)
-
 	for rows.Next() {
 		vals := make([]interface{}, len(cols))
 		for i := range cols {
@@ -115,9 +115,8 @@ func LoadTableCSV(tableName string) (ret []byte, err error) {
 			return
 		}
 		var row []string
-		for idx, column := range cols {
-			var scanner = vals[idx].(*scanner)
-			fmt.Printf("%v: %v\n", column, scanner.String())
+		for i := 0; i < len(cols); i++ {
+			var scanner = vals[i].(*scanner)
 			row = append(row, scanner.String())
 		}
 		err = w.Write(row)

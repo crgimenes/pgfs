@@ -32,12 +32,10 @@ type Node struct {
 
 // Root return root directory
 func (f *FS) Root() (fs.Node, error) {
-	fmt.Println("Root", len(f.Nodes))
 	return &Node{fs: f}, nil
 }
 
 func (n *Node) Lookup(ctx context.Context, name string) (fs.Node, error) {
-	fmt.Println("Lookup", n.Name, n.Inode)
 	node, ok := n.fs.Nodes[name]
 	if ok {
 		return node, nil
@@ -46,7 +44,6 @@ func (n *Node) Lookup(ctx context.Context, name string) (fs.Node, error) {
 }
 
 func (n *Node) ReadDirAll(ctx context.Context) ([]fuse.Dirent, error) {
-	fmt.Println("ReadDirAll", n.Name, n.Inode)
 	var dirDirs []fuse.Dirent
 	for _, node := range n.fs.Nodes {
 		dirent := fuse.Dirent{
@@ -60,7 +57,6 @@ func (n *Node) ReadDirAll(ctx context.Context) ([]fuse.Dirent, error) {
 }
 
 func (n *Node) Attr(ctx context.Context, a *fuse.Attr) (err error) {
-	fmt.Println("Attr", n.Name, n.Inode)
 	a.Inode = 1
 	a.Mode = os.ModeDir | 0555
 	if n.Name != "" {
@@ -99,7 +95,6 @@ func close(c io.Closer) {
 }
 
 func (n *Node) Open(ctx context.Context, req *fuse.OpenRequest, resp *fuse.OpenResponse) (fs.Handle, error) {
-	fmt.Println("Open", n.Name, n.Inode)
 	if !req.Flags.IsReadOnly() {
 		return nil, fuse.Errno(syscall.EACCES)
 	}
