@@ -2,7 +2,6 @@ package fuse
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"io"
 	"os"
@@ -60,7 +59,7 @@ func (n *Node) ReadDirAll(ctx context.Context) ([]fuse.Dirent, error) {
 	return dirDirs, nil
 }
 
-func (n *Node) Attr(ctx context.Context, a *fuse.Attr) error {
+func (n *Node) Attr(ctx context.Context, a *fuse.Attr) (err error) {
 	fmt.Println("Attr", n.Name, n.Inode)
 	a.Inode = 1
 	a.Mode = os.ModeDir | 0555
@@ -68,19 +67,17 @@ func (n *Node) Attr(ctx context.Context, a *fuse.Attr) error {
 		ext := filepath.Ext(n.Name)
 		tableName := strings.TrimSuffix(n.Name, ext)
 
-		t, err := postgres.LoadTable(tableName)
-		if err != nil {
-			return err
-		}
-
 		switch ext {
 		case ".json":
-			n.Content, err = json.MarshalIndent(t, "", "\t")
+			n.Content, err = postgres.LoadTableJSON(tableName)
 			if err != nil {
 				return err
 			}
 		case ".csv":
-			n.Content = []byte("not implemented")
+			n.Content, err = postgres.LoadTableCSV(tableName)
+			if err != nil {
+				return err
+			}
 		default:
 			n.Content = []byte(n.Name)
 		}

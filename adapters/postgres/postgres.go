@@ -1,7 +1,10 @@
 package postgres
 
 import (
+	"bytes"
 	"database/sql"
+	"encoding/csv"
+	"encoding/json"
 	"fmt"
 	"log"
 	"time"
@@ -37,15 +40,12 @@ func ListTables() (t []Table, err error) {
 	return
 }
 
-func LoadTable(tableName string) (t []map[string]string, err error) {
+func LoadTableJSON(tableName string) (ret []byte, err error) {
 	db, err := sql.Open("postgres", "user=postgres password=postgres dbname=cesar sslmode=disable")
 	if err != nil {
 		return
 	}
 	defer db.Close()
-
-	//ext := filepath.Ext(tableName)
-	//tableName = strings.TrimSuffix(tableName, ext)
 
 	rows, err := db.Query("SELECT * FROM " + tableName)
 	if err != nil {
@@ -58,7 +58,7 @@ func LoadTable(tableName string) (t []map[string]string, err error) {
 	}
 
 	fmt.Printf("%v\n", cols)
-
+	var t []map[string]string
 	for rows.Next() {
 		vals := make([]interface{}, len(cols))
 		for i := range cols {
@@ -75,7 +75,58 @@ func LoadTable(tableName string) (t []map[string]string, err error) {
 		}
 		t = append(t, m)
 	}
+	ret, err = json.MarshalIndent(t, "", "\t")
+	return
+}
 
+func LoadTableCSV(tableName string) (ret []byte, err error) {
+	db, err := sql.Open("postgres", "user=postgres password=postgres dbname=cesar sslmode=disable")
+	if err != nil {
+		return
+	}
+	defer db.Close()
+
+	rows, err := db.Query("SELECT * FROM " + tableName)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	cols, err := rows.Columns()
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	b := &bytes.Buffer{}
+	w := csv.NewWriter(b)
+	err = w.Write(cols)
+	if err != nil {
+		return
+	}
+
+	fmt.Printf("%v\n", cols)
+
+	for rows.Next() {
+		vals := make([]interface{}, len(cols))
+		for i := range cols {
+			vals[i] = new(scanner)
+		}
+		err = rows.Scan(vals...)
+		if err != nil {
+			return
+		}
+		var row []string
+		for idx, column := range cols {
+			var scanner = vals[idx].(*scanner)
+			fmt.Printf("%v: %v\n", column, scanner.String())
+			row = append(row, scanner.String())
+		}
+		err = w.Write(row)
+		if err != nil {
+			return
+		}
+	}
+	w.Flush()
+	ret = b.Bytes()
 	return
 }
 
