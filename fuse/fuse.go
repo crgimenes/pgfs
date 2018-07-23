@@ -103,7 +103,7 @@ func (n *Node) Open(ctx context.Context, req *fuse.OpenRequest, resp *fuse.OpenR
 }
 
 func (n *Node) Read(ctx context.Context, req *fuse.ReadRequest, resp *fuse.ReadResponse) error {
-	fmt.Printf("Reading file %q from %v to %v, inode %v\n", n.Name, req.Offset, req.Size, n.Inode)
+	log.Printf("reading file %q from %v to %v, inode %v\n", n.Name, req.Offset, req.Size, n.Inode)
 	fuseutil.HandleRead(req, resp, n.Content)
 	return nil
 }
