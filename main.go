@@ -9,7 +9,7 @@ import (
 )
 
 func main() {
-	err := fuse.Run(config.Get().Mountpoint)
+	err := fuse.Mount(config.Get().Mountpoint)
 	if err != nil {
 		log.Fatal(err)
 	}

@@ -17,10 +17,12 @@ import (
 	"github.com/nuveo/log"
 )
 
+// FS base of filesystem
 type FS struct {
 	Nodes map[string]*Node
 }
 
+// Node in the filesystem
 type Node struct {
 	fuse    *fs.Server
 	fs      *FS
@@ -35,6 +37,7 @@ func (f *FS) Root() (fs.Node, error) {
 	return &Node{fs: f}, nil
 }
 
+// Lookup a node and return
 func (n *Node) Lookup(ctx context.Context, name string) (fs.Node, error) {
 	node, ok := n.fs.Nodes[name]
 	if ok {
@@ -43,6 +46,7 @@ func (n *Node) Lookup(ctx context.Context, name string) (fs.Node, error) {
 	return nil, fuse.ENOENT
 }
 
+// ReadDirAll read all files and subdirectories in a directorie
 func (n *Node) ReadDirAll(ctx context.Context) ([]fuse.Dirent, error) {
 	var dirDirs []fuse.Dirent
 	for _, node := range n.fs.Nodes {
@@ -56,6 +60,7 @@ func (n *Node) ReadDirAll(ctx context.Context) ([]fuse.Dirent, error) {
 	return dirDirs, nil
 }
 
+// Attr return the file attribute
 func (n *Node) Attr(ctx context.Context, a *fuse.Attr) (err error) {
 	a.Inode = 1
 	a.Mode = os.ModeDir | 0555
@@ -94,6 +99,7 @@ func close(c io.Closer) {
 	}
 }
 
+// Open file
 func (n *Node) Open(ctx context.Context, req *fuse.OpenRequest, resp *fuse.OpenResponse) (fs.Handle, error) {
 	if !req.Flags.IsReadOnly() {
 		return nil, fuse.Errno(syscall.EACCES)
@@ -102,13 +108,15 @@ func (n *Node) Open(ctx context.Context, req *fuse.OpenRequest, resp *fuse.OpenR
 	return n, nil
 }
 
+// Read file content
 func (n *Node) Read(ctx context.Context, req *fuse.ReadRequest, resp *fuse.ReadResponse) error {
 	log.Printf("reading file %q from %v to %v, inode %v\n", n.Name, req.Offset, req.Size, n.Inode)
 	fuseutil.HandleRead(req, resp, n.Content)
 	return nil
 }
 
-func Run(mountpoint string) (err error) {
+// Mount the file system
+func Mount(mountpoint string) (err error) {
 	c, err := fuse.Mount(
 		mountpoint,
 		fuse.FSName("pgfs"),
