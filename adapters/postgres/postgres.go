@@ -6,25 +6,34 @@ import (
 	"encoding/csv"
 	"encoding/json"
 	"fmt"
-	"log"
 	"time"
 
 	"github.com/crgimenes/pgfs/config"
 	_ "github.com/lib/pq"
+	"github.com/nuveo/log"
 )
 
+// Table metadata
 type Table struct {
 	Name string
 }
 
-func ListTables() (t []Table, err error) {
-	cfg := config.Get()
-	db, err := sql.Open("postgres", cfg.DataSourceName)
-	if err != nil {
-		return
-	}
-	defer db.Close()
+var (
+	cfg config.Config
+	db  *sql.DB
+)
 
+func init() {
+	var err error
+	cfg = config.Get()
+	db, err = sql.Open("postgres", cfg.DataSourceName)
+	if err != nil {
+		log.Fatal(err)
+	}
+}
+
+// ListTables get all tables from a schema and return in a slice
+func ListTables() (t []Table, err error) {
 	rows, err := db.Query("SELECT tablename FROM pg_tables where schemaname = $1", cfg.SchemaName)
 	if err != nil {
 		log.Fatal(err)
@@ -42,14 +51,8 @@ func ListTables() (t []Table, err error) {
 	return
 }
 
+// LoadTableJSON load a table and trasform to JSON
 func LoadTableJSON(tableName string) (ret []byte, err error) {
-	cfg := config.Get()
-	db, err := sql.Open("postgres", cfg.DataSourceName)
-	if err != nil {
-		return
-	}
-	defer db.Close()
-
 	rows, err := db.Query("SELECT * FROM " + tableName)
 	if err != nil {
 		log.Fatal(err)
@@ -70,8 +73,8 @@ func LoadTableJSON(tableName string) (ret []byte, err error) {
 			log.Fatal(e)
 		}
 		m := make(map[string]string)
-		for idx, column := range cols {
-			var scanner = vals[idx].(*scanner)
+		for i, column := range cols {
+			var scanner = vals[i].(*scanner)
 			m[column] = scanner.String()
 		}
 		t = append(t, m)
@@ -80,14 +83,8 @@ func LoadTableJSON(tableName string) (ret []byte, err error) {
 	return
 }
 
+// LoadTableCSV load a table and trasform to CSV in a byte array
 func LoadTableCSV(tableName string) (ret []byte, err error) {
-	cfg := config.Get()
-	db, err := sql.Open("postgres", cfg.DataSourceName)
-	if err != nil {
-		return
-	}
-	defer db.Close()
-
 	rows, err := db.Query("SELECT * FROM " + tableName)
 	if err != nil {
 		log.Fatal(err)
