@@ -5,11 +5,11 @@ import (
 
 	_ "github.com/crgimenes/goconfig/toml"
 	"github.com/crgimenes/pgfs/config"
-	"github.com/crgimenes/pgfs/fuse"
+	"github.com/crgimenes/pgfs/filesystem"
 )
 
 func main() {
-	err := fuse.Mount(config.Get().Mountpoint)
+	err := filesystem.Mount(config.Get().Mountpoint)
 	if err != nil {
 		log.Fatal(err)
 	}
