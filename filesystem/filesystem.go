@@ -37,6 +37,10 @@ func (f *FS) Root() (fs.Node, error) {
 	return &Node{fs: f}, nil
 }
 
+func Load() {
+	postgres.Load()
+}
+
 // Lookup a node and return
 func (n *Node) Lookup(ctx context.Context, name string) (fs.Node, error) {
 	node, ok := n.fs.Nodes[name]

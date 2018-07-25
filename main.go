@@ -9,6 +9,7 @@ import (
 
 func main() {
 	config.Load()
+	filesystem.Load()
 	err := filesystem.Mount(config.Get().Mountpoint)
 	if err != nil {
 		log.Fatal(err)

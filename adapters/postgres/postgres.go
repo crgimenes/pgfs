@@ -23,7 +23,8 @@ var (
 	db  *sql.DB
 )
 
-func init() {
+// Load config and connect do db
+func Load() {
 	var err error
 	cfg = config.Get()
 	db, err = sql.Open("postgres", cfg.DataSourceName)
@@ -125,7 +126,6 @@ func LoadTableCSV(tableName string) (ret []byte, err error) {
 }
 
 type scanner struct {
-	valid bool
 	value interface{}
 }
 
@@ -133,25 +133,18 @@ func (scanner *scanner) Scan(src interface{}) error {
 	switch src.(type) {
 	case int64:
 		scanner.value = src.(int64)
-		scanner.valid = true
 	case float64:
 		scanner.value = src.(float64)
-		scanner.valid = true
 	case bool:
 		scanner.value = src.(bool)
-		scanner.valid = true
 	case string:
 		scanner.value = src.(string)
-		scanner.valid = true
 	case []byte:
 		scanner.value = src.([]byte)
-		scanner.valid = true
 	case time.Time:
 		scanner.value = src.(time.Time)
-		scanner.valid = true
 	case nil:
 		scanner.value = nil
-		scanner.valid = true
 	}
 	return nil
 }
