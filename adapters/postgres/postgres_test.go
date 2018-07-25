@@ -38,3 +38,22 @@ func Test_ListTables(t *testing.T) {
 	}
 
 }
+
+func Test_LoadTableJSON(t *testing.T) {
+	mock, err := mockDB()
+	if err != nil {
+		t.Errorf("expected no errors, but got %v", err)
+	}
+	mock.ExpectQuery(`SELECT`).WillReturnRows(
+		sqlmock.NewRows([]string{"field"}).AddRow("test"))
+
+	j, err := LoadTableJSON("tablename")
+	if err != nil {
+		t.Errorf("expected no errors, but got %v", err)
+	}
+	expected := "[\n\t{\n\t\t\"field\": \"test\"\n\t}\n]"
+	if string(j) != expected {
+		t.Errorf("expected %q, but got %q", expected, string(j))
+	}
+
+}

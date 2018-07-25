@@ -11,7 +11,7 @@ import (
 
 	"bazil.org/fuse"
 	"bazil.org/fuse/fs"
-	_ "bazil.org/fuse/fs/fstestutil"
+	//_ "bazil.org/fuse/fs/fstestutil"
 	"bazil.org/fuse/fuseutil"
 	"github.com/crgimenes/pgfs/adapters/postgres"
 	"github.com/nuveo/log"
@@ -37,6 +37,7 @@ func (f *FS) Root() (fs.Node, error) {
 	return &Node{fs: f}, nil
 }
 
+// Load required resources for the filesystem
 func Load() {
 	postgres.Load()
 }
