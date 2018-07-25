@@ -36,9 +36,8 @@ func init() {
 func ListTables() (t []Table, err error) {
 	rows, err := db.Query("SELECT tablename FROM pg_tables where schemaname = $1", cfg.SchemaName)
 	if err != nil {
-		log.Fatal(err)
+		return
 	}
-
 	for rows.Next() {
 		var name string
 		err = rows.Scan(&name)
@@ -47,7 +46,6 @@ func ListTables() (t []Table, err error) {
 		}
 		t = append(t, Table{Name: name})
 	}
-
 	return
 }
 

@@ -1,6 +1,7 @@
 package postgres
 
 import (
+	"errors"
 	"testing"
 
 	sqlmock "github.com/DATA-DOG/go-sqlmock"
@@ -29,4 +30,11 @@ func Test_ListTables(t *testing.T) {
 	if table[0].Name != "test" {
 		t.Errorf("expected \"test\", but got %v", table[0].Name)
 	}
+
+	mock.ExpectQuery("SELECT tablename").WillReturnError(errors.New("error test"))
+	_, err = ListTables()
+	if err == nil {
+		t.Errorf("expected errors, but got nil")
+	}
+
 }
