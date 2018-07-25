@@ -54,7 +54,7 @@ func ListTables() (t []Table, err error) {
 func LoadTableJSON(tableName string) (ret []byte, err error) {
 	rows, err := db.Query("SELECT * FROM " + tableName)
 	if err != nil {
-		log.Fatal(err)
+		return
 	}
 
 	cols, err := rows.Columns()
@@ -86,7 +86,7 @@ func LoadTableJSON(tableName string) (ret []byte, err error) {
 func LoadTableCSV(tableName string) (ret []byte, err error) {
 	rows, err := db.Query("SELECT * FROM " + tableName)
 	if err != nil {
-		log.Fatal(err)
+		return
 	}
 
 	cols, err := rows.Columns()
