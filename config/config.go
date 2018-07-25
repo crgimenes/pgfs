@@ -4,6 +4,7 @@ import (
 	"log"
 
 	"github.com/crgimenes/goconfig"
+	_ "github.com/crgimenes/goconfig/toml"
 )
 
 // Config stores the configuration
@@ -15,17 +16,15 @@ type Config struct {
 
 var cfg Config
 
-func init() {
-	if err := load(); err != nil {
+// Load config parameters
+func Load() {
+	cfg = Config{}
+	goconfig.PrefixEnv = "fs"
+	goconfig.File = "pgfs.toml"
+	err := goconfig.Parse(&cfg)
+	if err != nil {
 		log.Fatal(err)
 	}
-}
-
-func load() (err error) {
-	cfg = Config{}
-	goconfig.File = "pgfs.toml"
-	err = goconfig.Parse(&cfg)
-	return
 }
 
 // Get returns settings
