@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	sqlmock "github.com/DATA-DOG/go-sqlmock"
+	_ "github.com/lib/pq"
 )
 
 func mockDB() (mock sqlmock.Sqlmock, err error) {
@@ -84,5 +85,40 @@ func Test_LoadTableCSV(t *testing.T) {
 	_, err = LoadTableCSV("tablename")
 	if err == nil {
 		t.Errorf("expected errors, but got nil")
+	}
+}
+
+func Test_scanner_Scan(t *testing.T) {
+	type fields struct {
+		value interface{}
+	}
+	type args struct {
+		src interface{}
+	}
+	tests := []struct {
+		name    string
+		fields  fields
+		args    args
+		wantErr bool
+	}{
+		{
+			name: "int64",
+			fields: fields{
+				value: 10,
+			},
+			args: args{
+				src: 10,
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			scanner := &scanner{
+				value: tt.fields.value,
+			}
+			if err := scanner.Scan(tt.args.src); (err != nil) != tt.wantErr {
+				t.Errorf("scanner.Scan() error = %v, wantErr %v", err, tt.wantErr)
+			}
+		})
 	}
 }

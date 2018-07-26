@@ -131,6 +131,8 @@ type scanner struct {
 
 func (scanner *scanner) Scan(src interface{}) error {
 	switch src.(type) {
+	case int:
+		scanner.value = src.(int)
 	case int64:
 		scanner.value = src.(int64)
 	case float64:
@@ -151,6 +153,8 @@ func (scanner *scanner) Scan(src interface{}) error {
 
 func (scanner *scanner) String() string {
 	switch scanner.value.(type) {
+	case int:
+		return fmt.Sprintf("%v", scanner.value.(int))
 	case int64:
 		return fmt.Sprintf("%v", scanner.value.(int64))
 	case float64:
