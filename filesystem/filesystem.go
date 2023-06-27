@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"log"
 	"os"
 	"path/filepath"
 	"strings"
@@ -11,10 +12,10 @@ import (
 
 	"bazil.org/fuse"
 	"bazil.org/fuse/fs"
-	//_ "bazil.org/fuse/fs/fstestutil"
+
+	_ "bazil.org/fuse/fs/fstestutil"
 	"bazil.org/fuse/fuseutil"
 	"github.com/crgimenes/pgfs/adapters/postgres"
-	"github.com/nuveo/log"
 )
 
 // FS base of filesystem
@@ -44,6 +45,7 @@ func Load() {
 
 // Lookup a node and return
 func (n *Node) Lookup(ctx context.Context, name string) (fs.Node, error) {
+	log.Println("Lookup", name)
 	node, ok := n.fs.Nodes[name]
 	if ok {
 		return node, nil
@@ -53,6 +55,7 @@ func (n *Node) Lookup(ctx context.Context, name string) (fs.Node, error) {
 
 // ReadDirAll read all files and subdirectories in a directorie
 func (n *Node) ReadDirAll(ctx context.Context) ([]fuse.Dirent, error) {
+	log.Println("ReadDirAll", n.Name)
 	var dirDirs []fuse.Dirent
 	for _, node := range n.fs.Nodes {
 		dirent := fuse.Dirent{
@@ -67,6 +70,7 @@ func (n *Node) ReadDirAll(ctx context.Context) ([]fuse.Dirent, error) {
 
 // Attr return the file attribute
 func (n *Node) Attr(ctx context.Context, a *fuse.Attr) (err error) {
+	fmt.Println("Attr", n.Name)
 	a.Inode = 1
 	a.Mode = os.ModeDir | 0555
 	if n.Name != "" {
@@ -98,14 +102,16 @@ func (n *Node) Attr(ctx context.Context, a *fuse.Attr) (err error) {
 }
 
 func close(c io.Closer) {
+	log.Println("closing")
 	err := c.Close()
 	if err != nil {
-		log.Errorln(err)
+		log.Println("error closing", err)
 	}
 }
 
 // Open file
 func (n *Node) Open(ctx context.Context, req *fuse.OpenRequest, resp *fuse.OpenResponse) (fs.Handle, error) {
+	log.Println("Open", n.Name)
 	if !req.Flags.IsReadOnly() {
 		return nil, fuse.Errno(syscall.EACCES)
 	}
@@ -115,6 +121,7 @@ func (n *Node) Open(ctx context.Context, req *fuse.OpenRequest, resp *fuse.OpenR
 
 // Read file content
 func (n *Node) Read(ctx context.Context, req *fuse.ReadRequest, resp *fuse.ReadResponse) error {
+	log.Println("Read", n.Name)
 	log.Printf("reading file %q from %v to %v, inode %v\n", n.Name, req.Offset, req.Size, n.Inode)
 	fuseutil.HandleRead(req, resp, n.Content)
 	return nil
@@ -122,12 +129,12 @@ func (n *Node) Read(ctx context.Context, req *fuse.ReadRequest, resp *fuse.ReadR
 
 // Mount the file system
 func Mount(mountpoint string) (err error) {
+	log.Println("Mounting filesystem")
 	c, err := fuse.Mount(
 		mountpoint,
 		fuse.FSName("pgfs"),
 		fuse.Subtype("pgfs"),
-		fuse.LocalVolume(),
-		fuse.VolumeName("Postgresql filesystem"),
+		fuse.ReadOnly(),
 	)
 	if err != nil {
 		return
@@ -180,12 +187,5 @@ func Mount(mountpoint string) (err error) {
 	}
 
 	err = srv.Serve(filesys)
-	if err != nil {
-		return
-	}
-
-	// Check if the mount process has an error to report.
-	<-c.Ready
-	err = c.MountError
 	return
 }
