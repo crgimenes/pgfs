@@ -3,8 +3,8 @@ package config
 import (
 	"log"
 
-	"github.com/crgimenes/goconfig"
-	_ "github.com/crgimenes/goconfig/toml"
+	"crg.eti.br/go/config"
+	_ "crg.eti.br/go/config/ini"
 )
 
 // Config stores the configuration
@@ -19,9 +19,9 @@ var cfg Config
 // Load config parameters
 func Load() {
 	cfg = Config{}
-	goconfig.PrefixEnv = "fs"
-	goconfig.File = "pgfs.toml"
-	err := goconfig.Parse(&cfg)
+	config.PrefixEnv = "fs"
+	config.File = "pgfs.ini"
+	err := config.Parse(&cfg)
 	if err != nil {
 		log.Fatal(err)
 	}
