@@ -6,11 +6,11 @@ import (
 	"encoding/csv"
 	"encoding/json"
 	"fmt"
+	"log"
 	"time"
 
 	"github.com/crgimenes/pgfs/config"
 	_ "github.com/lib/pq"
-	"github.com/nuveo/log"
 )
 
 // Table metadata
