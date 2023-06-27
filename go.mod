@@ -7,7 +7,6 @@ require (
 	crg.eti.br/go/config v1.4.13
 	github.com/DATA-DOG/go-sqlmock v1.5.0
 	github.com/lib/pq v1.10.9
-	github.com/nuveo/log v0.0.0-20190430190217-44d02db6bdf8
 )
 
 require (
