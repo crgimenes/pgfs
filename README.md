@@ -10,7 +10,7 @@ The purpose is to be able to use standard UNIX tools to access data such as grep
         - macOS [https://osxfuse.github.io](https://osxfuse.github.io)
         - Linux [https://github.com/libfuse/libfuse](https://github.com/libfuse/libfuse)
 
-- Create a pgfs.toml file with database credentials. you can sweat the pgfs.toml.sample file as an example
+- Create a pgfs.ini file with database credentials. you can sweat the pgfs.ini.sample file as an example
 
 - Mount the file system with the following command
 
