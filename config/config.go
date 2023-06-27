@@ -9,9 +9,9 @@ import (
 
 // Config stores the configuration
 type Config struct {
-	Mountpoint     string `json:"m" toml:"mountpoint" cfg:"m" cfgRequired:"true"`
-	DataSourceName string `json:"dsn" toml:"dsn" cfg:"dsn" cfgRequired:"true"`
-	SchemaName     string `json:"schema" toml:"schema" cfg:"s" cfgDefault:"public" cfgRequired:"true"`
+	Mountpoint     string `ini:"mountpoint" json:"m" toml:"mountpoint" cfg:"m" cfgRequired:"true"`
+	DataSourceName string `ini:"dsn" json:"dsn" toml:"dsn" cfg:"dsn" cfgRequired:"true"`
+	SchemaName     string `ini:"schema" json:"schema" toml:"schema" cfg:"s" cfgDefault:"public" cfgRequired:"true"`
 }
 
 var cfg Config
