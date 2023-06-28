@@ -113,6 +113,7 @@ func close(c io.Closer) {
 func (n *Node) Open(ctx context.Context, req *fuse.OpenRequest, resp *fuse.OpenResponse) (fs.Handle, error) {
 	log.Println("Open", n.Name)
 	if !req.Flags.IsReadOnly() {
+		log.Println("Open", n.Name, "is not read only")
 		return nil, fuse.Errno(syscall.EACCES)
 	}
 	resp.Flags |= fuse.OpenKeepCache
@@ -121,7 +122,6 @@ func (n *Node) Open(ctx context.Context, req *fuse.OpenRequest, resp *fuse.OpenR
 
 // Read file content
 func (n *Node) Read(ctx context.Context, req *fuse.ReadRequest, resp *fuse.ReadResponse) error {
-	log.Println("Read", n.Name)
 	log.Printf("reading file %q from %v to %v, inode %v\n", n.Name, req.Offset, req.Size, n.Inode)
 	fuseutil.HandleRead(req, resp, n.Content)
 	return nil
@@ -203,7 +203,6 @@ func (n *Node) WriteResponse(resp *fuse.WriteResponse) {
 
 // Write file content
 func (n *Node) Write(ctx context.Context, req *fuse.WriteRequest, resp *fuse.WriteResponse) error {
-	log.Println("Write", n.Name)
 	log.Printf("writing file %q from %v, inode %v\n", n.Name, req.Offset, n.Inode)
 	return nil
 }
