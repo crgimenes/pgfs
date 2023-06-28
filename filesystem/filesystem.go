@@ -134,7 +134,8 @@ func Mount(mountpoint string) (err error) {
 		mountpoint,
 		fuse.FSName("pgfs"),
 		fuse.Subtype("pgfs"),
-		fuse.ReadOnly(),
+		//fuse.ReadOnly(),
+		fuse.AllowOther(),
 	)
 	if err != nil {
 		return
@@ -166,14 +167,14 @@ func Mount(mountpoint string) (err error) {
 						fuse:    srv,
 						Inode:   inode + 1,
 						Type:    fuse.DT_File,
-						Content: []byte("test file 4\n"),
+						Content: []byte(""),
 					},
 					t.Name + ".csv": &Node{
 						Name:    t.Name + ".csv",
 						fuse:    srv,
 						Inode:   inode + 2,
 						Type:    fuse.DT_File,
-						Content: []byte("test file 4\n"),
+						Content: []byte(""),
 					},
 				},
 			},
@@ -187,5 +188,29 @@ func Mount(mountpoint string) (err error) {
 	}
 
 	err = srv.Serve(filesys)
+	return
+}
+
+// WriteRequest write request
+func (n *Node) WriteRequest(req *fuse.WriteRequest) {
+	log.Println("WriteRequest", n.Name)
+}
+
+// WriteResponse write response
+func (n *Node) WriteResponse(resp *fuse.WriteResponse) {
+	log.Println("WriteResponse", n.Name)
+}
+
+// Write file content
+func (n *Node) Write(ctx context.Context, req *fuse.WriteRequest, resp *fuse.WriteResponse) error {
+	log.Println("Write", n.Name)
+	log.Printf("writing file %q from %v, inode %v\n", n.Name, req.Offset, n.Inode)
+	return nil
+}
+
+// Unmount the file system
+func Unmount(mountpoint string) (err error) {
+	log.Println("Unmounting filesystem")
+	err = fuse.Unmount(mountpoint)
 	return
 }
