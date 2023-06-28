@@ -135,7 +135,7 @@ func Mount(mountpoint string) (err error) {
 		fuse.FSName("pgfs"),
 		fuse.Subtype("pgfs"),
 		//fuse.ReadOnly(),
-		fuse.AllowOther(),
+		//fuse.AllowOther(), // option allow_other only allowed if 'user_allow_other' is set in /etc/fuse.conf
 	)
 	if err != nil {
 		return
